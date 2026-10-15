@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cybersecurity and Privacy Challenges in Federated Learning for Medical Imaging</title>
+<meta name="description" content="A plain-language walkthrough of the paper: how one malicious hospital can break a federated medical-imaging model, and which defenses recover it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="toc" aria-label="Sections">
+  <p class="toc-title">Contents</p>
+  <ol>
+    <li><a href="#problem">The problem</a></li>
+    <li><a href="#how-fl-works">How federated learning works</a></li>
+    <li><a href="#threats">Threats</a></li>
+    <li><a href="#defenses">Defenses</a></li>
+    <li><a href="#experiment">The experiment</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#takeaways">Takeaways</a></li>
+    <li><a href="#limits">Limitations</a></li>
+    <li><a href="#cite">Cite and read</a></li>
+  </ol>
+</nav>
+
+<main>
+  <header class="hero">
+    <p class="eyebrow"> Brief <span>·</span> CAICS 2026</p>
+    <h1>Cybersecurity and Privacy Challenges in Federated Learning for Medical Imaging</h1>
+    <p class="authors">Deepak Kambala (UCEN, JNTUK; Prism Labs) and Anurag Tummapudi (SRM University AP)</p>
+    <p class="venue">Presented at CAICS 2026, the Colloquium on AI and Cybersecurity, co-hosted with Argonne National Laboratory and IISc Bengaluru.</p>
+
+    <p class="lede">Keeping patient data inside the hospital does not keep the model safe. In our five-hospital simulation, one compromised hospital pushed a pneumonia classifier from 79.8% accuracy down to 50.0%, which is chance for a two-class problem.</p>
+
+    <section class="demo" aria-labelledby="demo-h">
+      <h2 id="demo-h">One hospital, 68% of the vote</h2>
+      <p>The server averages updates weighted by dataset size. Switch the attack on to see how scaling a poisoned update changes who controls the global model.</p>
+      <div class="demo-controls">
+        <button id="attack-toggle" type="button" aria-pressed="false">Apply label flipping and 8× scaling</button>
+        <span id="demo-acc" class="demo-acc" aria-live="polite">Global accuracy: 79.8%</span>
+      </div>
+      <div class="share" role="img" aria-label="Share of influence on the global model">
+        <div id="share-bad" class="share-bad"><span id="share-bad-label">21%</span></div>
+        <div id="share-ok" class="share-ok"><span id="share-ok-label">79%</span></div>
+      </div>
+      <div class="share-legend">
+        <span><i class="sw bad"></i>Malicious hospital</span>
+        <span><i class="sw ok"></i>Four honest hospitals</span>
+      </div>
+    </section>
+  </header>
+
+  <section id="problem">
+    <h2>The problem</h2>
+    <p>Hospitals want to train diagnostic models on each other's data, but HIPAA, GDPR and India's DPDP Act make pooling patient records difficult. No single hospital has enough variety in patients, scanners and disease prevalence to train a robust model alone.</p>
+    <p>Federated learning (FL) is the common answer: each hospital trains locally and shares only model updates. The paper's central claim is that <strong>data locality is necessary but not sufficient for security</strong>. The aggregator has to trust that every update comes from honest training, and in a clinical setting a poisoned classifier can influence a real diagnosis.</p>
+    <p>FL also does not make a system compliant with these laws by itself. Each framework asks for more than keeping data on-site.</p>
+    <h3>What the paper contributes</h3>
+    <ul>
+      <li>A survey of four attack classes against federated medical imaging.</li>
+      <li>A review of five defense families and the trade-offs between them.</li>
+      <li>An experiment on real chest X-rays measuring what one malicious hospital can do, and how well three Byzantine-robust rules recover.</li>
+    </ul>
+  </section>
+
+  <section id="how-fl-works">
+    <h2>How federated learning works</h2>
+    <p>Training runs in rounds (FedAvg). The server sends the current global model to the hospitals. Each hospital trains it on its own images and returns the result. The server then averages the returned models, weighting each by the number of training examples it reports:</p>
+    <figure class="formula">
+      <p>w<sub>t+1</sub> = &Sigma;<sub>k</sub> (n<sub>k</sub> / n) &middot; w<sub>t</sub><sup>k</sup></p>
+      <figcaption>n<sub>k</sub> is hospital k's dataset size and n is the total across hospitals.</figcaption>
+    </figure>
+    <p>The server never sees patient-level data. It also cannot check that an update came from honest training, and the dataset size is self-reported. That gap is the attack surface.</p>
+    <h3>Why hospitals make this harder</h3>
+    <p>Hospital data is non-IID: disease prevalence, demographics and imaging hardware all differ. An honest hospital can therefore look statistically unusual for legitimate reasons. Many robust aggregation rules work by down-weighting updates that look unusual, so they risk treating an atypical hospital as an attacker. The paper calls telling heterogeneity from attack the central open problem for robust FL in clinics.</p>
+  </section>
+
+  <section id="threats">
+    <h2>Threats</h2>
+    <p>Select an attack class to read how it works and why it matters for imaging.</p>
+    <div class="tabs" role="tablist" aria-label="Attack classes" id="threat-tabs"></div>
+    <div class="tabpanel" id="threat-panel" role="tabpanel" tabindex="0"></div>
+  </section>
+
+  <section id="defenses">
+    <h2>Defenses</h2>
+    <p>No defense covers every threat, and each one costs something in privacy, robustness, accuracy or computation.</p>
+    <div class="table-wrap">
+      <table>
+        <caption class="sr">Defenses reviewed in the paper</caption>
+        <thead><tr><th scope="col">Defense</th><th scope="col">What it does</th><th scope="col">What it costs</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Secure aggregation</th><td>Masks updates cryptographically so the server only sees the sum.</td><td>The server cannot inspect single updates, so it cannot run anomaly detection.</td></tr>
+          <tr><th scope="row">Differential privacy</th><td>Clips contributions and adds noise to limit what any record or client reveals.</td><td>Accuracy falls as the privacy budget tightens.</td></tr>
+          <tr><th scope="row">Krum</th><td>Picks the single update closest to its nearest neighbors and discards the rest.</td><td>Throws away honest information each round; pairwise distances scale as O(n&sup2;).</td></tr>
+          <tr><th scope="row">Trimmed mean and median</th><td>Work per coordinate, dropping extremes (trimmed mean) or taking the middle value (median).</td><td>Need an assumed bound on malicious clients; median discards more usable signal.</td></tr>
+          <tr><th scope="row">FLTrust</th><td>Weights updates by similarity to one computed on a small trusted dataset.</td><td>Needs a trusted dataset that represents a very varied federation.</td></tr>
+          <tr><th scope="row">FLDetector</th><td>Tracks each client across rounds and flags inconsistent behavior.</td><td>Needs update history, which secure aggregation hides.</td></tr>
+          <tr><th scope="row">Participant authentication</th><td>Vets which institutions may join, guarding against Sybil attacks.</td><td>Does not stop a vetted participant from misbehaving.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="experiment">
+    <h2>The experiment</h2>
+    <dl class="facts">
+      <div><dt>Data</dt><dd><a href="https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia" target="_blank" rel="noopener noreferrer">Chest X-Ray Images (Pneumonia)</a>: 5,863 pediatric radiographs, normal or pneumonia, resized to 48 &times; 48.</dd></div>
+      <div><dt>Federation</dt><dd>Five hospitals with disjoint data and pneumonia prevalence from 30% to 70%.</dd></div>
+      <div><dt>Model</dt><dd>A small CNN with 75,041 parameters, trained for 15 federated rounds with a fixed seed.</dd></div>
+      <div><dt>Attack</dt><dd>One hospital flips its labels and multiplies its update by 8, raising its influence from about 21% to about 68%.</dd></div>
+      <div><dt>Compared</dt><dd>FedAvg with and without the attack, then the attack against Krum, trimmed mean and median.</dd></div>
+    </dl>
+    <p>The authors also report two bugs they caught: an all-zero weight initialization that silently froze training, and a sampling step that let hospitals share identical images. Both produced believable but wrong results without any error.</p>
+  </section>
+
+  <section id="results">
+    <h2>Results</h2>
+    <p>Final global accuracy after 15 rounds. Select a row for detail.</p>
+    <div id="chart" class="chart" role="list"></div>
+    <p id="chart-note" class="chart-note" aria-live="polite"></p>
+    <h3>Convergence and cost</h3>
+    <ul>
+      <li>Poisoned FedAvg collapsed immediately, by round 2, instead of degrading gradually.</li>
+      <li>Trimmed mean and median settled by round 3. Krum took until about round 7.</li>
+      <li>All three robust rules ran in about 1.7 to 1.8 seconds per run at n = 5. Krum's cost grows quadratically with the number of hospitals.</li>
+    </ul>
+  </section>
+
+  <section id="takeaways">
+    <h2>Takeaways</h2>
+    <ol class="plain">
+      <li><strong>Federating is not securing.</strong> A single bad participant can reduce the model to chance.</li>
+      <li><strong>Robust rules are not interchangeable.</strong> Under the same attack and data, accuracy ranged from 75.0% to 83.0%, so the specific rule matters.</li>
+      <li><strong>Match the defense to the threat model.</strong> Secure aggregation, anomaly detection and robust aggregation pull against each other.</li>
+      <li><strong>Validate on non-IID clinical data.</strong> Theoretical guarantees alone are not a substitute.</li>
+    </ol>
+  </section>
+
+  <section id="limits">
+    <h2>Limitations</h2>
+    <p>The federation is small (five hospitals) and the model is small. Only one attack was tested, one malicious hospital using label flipping with 8× scaling, on one binary task. Combinations of defenses, such as differential privacy on top of a robust rule, were not evaluated. The authors caution against generalizing beyond this configuration.</p>
+  </section>
+
+  <section id="cite">
+    <h2>Cite and read</h2>
+    <p><a href="https://ssrn.com/abstract=7453838">Read the paper on SSRN</a> (ID 7453838).</p>
+    <pre class="cite" id="cite-text">Kambala, D., and Tummapudi, A. (2026). Cybersecurity and Privacy Challenges in Federated Learning for Medical Imaging. CAICS 2026. SSRN 7453838.</pre>
+    <button type="button" id="copy-cite">Copy citation</button>
+    <p class="contact">Contact: deepakkambala@prism-labs.tech</p>
+  </section>
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>
